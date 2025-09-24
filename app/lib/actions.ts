@@ -29,7 +29,7 @@ export type State = {
     message?: string|null;
 }
 
-export async function createInvoice(prevState: StaticRange, formdata: FormData) {
+export async function createInvoice(prevState: State, formdata: FormData) {
     const rawFormData = {
         customerId: formdata.get('customerId'),
         amount: formdata.get('amount'),
@@ -52,7 +52,6 @@ export async function createInvoice(prevState: StaticRange, formdata: FormData) 
         `;
     }
     catch (error) {
-        console.error(error);
         return {
             message: "Database error: Failed to create invoice",
         };
@@ -63,13 +62,19 @@ export async function createInvoice(prevState: StaticRange, formdata: FormData) 
 }
 
 const UpdateInvoiceSchema = FormSchema.omit({id: true, date: true});
-export async function UpdateInvoice(id: string, formdata: FormData) {
-    const {customerId, amount, status} = UpdateInvoiceSchema.parse({
+export async function UpdateInvoice(id: string, prevState: State, formdata: FormData) {
+    const validatedFields = UpdateInvoiceSchema.safeParse({
         customerId: formdata.get('customerId'),
         amount: formdata.get('amount'),
         status: formdata.get('status'),
     });
-
+    if(!validatedFields.success){
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: "Missing fields: Failed to update invoice"
+        };
+    }
+    const {customerId, amount, status} = validatedFields.data;
     const amountInCents = amount * 100;
     try{
         await sql`
@@ -79,7 +84,6 @@ export async function UpdateInvoice(id: string, formdata: FormData) {
         `;
     }
     catch (error){
-        console.error(error);
         return {
             message: "Database error: Failed to update invoice",
         };
@@ -96,7 +100,6 @@ export async function DeleteInvoice(id: string) {
         `;
     }
     catch (error){
-        console.error(error);
         return {
             message: "Database error: Failed to delete invoice",
         };
